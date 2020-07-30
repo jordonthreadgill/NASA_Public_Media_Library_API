@@ -35,8 +35,9 @@ Function Page-Numbers($pageNumbers){
     $links = ($callNASA | select -ExpandProperty collection).links
     $prompt = $links.prompt
     $rel = $links.rel
-    [string]$link = $links.href
-    [int]$pageNumber = $link.split('=')[1] -replace ("&q","")
+    $link = $links.href
+    [int]$pageNumber = $link.Substring($link.Length - 1)
+
     $items += ($callNASA | select -ExpandProperty collection | select -expand items | select -expand links).href
 
     if ($i -lt $pageNumber){
@@ -55,11 +56,13 @@ Function Page-Numbers($pageNumbers){
             $rest.Add($object1)
         }
         $rest = $callNASA.collection.items.data
-        $links = ($callNASA | select -ExpandProperty collection).links
+        $links = ($callNASA | select -ExpandProperty collection).links | select -Last 1
         $prompt = $links.prompt
         $rel = $links.rel
-        [string]$link = $links.href; Write-Host $link
-        $pageNumber = $link.split('=')[1] -replace ("&q","")
+        $link = $links.href; Write-Host $link
+        $link1 = $link -replace ("https://images-api.nasa.gov/search","")
+        $link2 = $link1.Split('&')[0]
+        [int]$pageNumber = $link2.Substring($link2.Length - 1)
         $items += ($callNASA | select -ExpandProperty collection | select -expand items | select -expand links).href
         $i++
     }
