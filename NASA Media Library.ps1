@@ -10,6 +10,7 @@ New-Item -Path $outpath -ItemType Directory -ErrorAction SilentlyContinue
 
 Function Page-Numbers($pageNumbers){
     $items = @()
+    $linkHistory = @()
     $rest = New-Object -TypeName System.Collections.Generic.List[PSCustomObject]
     $i = 0
     $callNASA = irm -Uri $url -UseBasicParsing -Method get -ContentType "application/json"
@@ -29,20 +30,16 @@ Function Page-Numbers($pageNumbers){
         $object1 = [pscustomobject]@{Title = $title; DateCreated = $dateCreated; Description_Minor = $descriptionMinor; NasaId = $nasaId; DescriptionsMajor = $descriptionMajor; Keywords = $keywords; SecondaryCreator = $secondaryCreator}
         $rest.Add($object1)
     }
-    $title = $rest.title
-    $title2 = $title + '.jpg'
     [string]$keywords = $rest.keywords
     $links = ($callNASA | select -ExpandProperty collection).links
     $prompt = $links.prompt
     $rel = $links.rel
-    $link = $links.href
-    [int]$pageNumber = $link.Substring($link.Length - 1)
-
     $items += ($callNASA | select -ExpandProperty collection | select -expand items | select -expand links).href
-
-    if ($i -lt $pageNumber){
-        $url = $link
-        $callNASA = irm -Uri $url -UseBasicParsing -Method get -ContentType "application/json"
+    $link = $links.href | select -last 1
+    $linkHistory += "$link"
+    
+    while((!($linkHistory | ? {$_ -notlike "*$link*"}))){
+        $callNASA = irm -Uri $link -UseBasicParsing -Method get -ContentType "application/json" 
         foreach ($thing in $callNASA.collection.items.data){
             $title = $thing.title
             $dateCreated = $thing.date_created
@@ -53,19 +50,16 @@ Function Page-Numbers($pageNumbers){
             $secondaryCreator = $thing.secondary_creator
 
             $object1 = [pscustomobject]@{Title = $title; DateCreated = $dateCreated; Description_Minor = $descriptionMinor; NasaId = $nasaId; DescriptionsMajor = $descriptionMajor; Keywords = $keywords; SecondaryCreator = $secondaryCreator}
-            $rest.Add($object1)
+            $rest += $object1
         }
-        $rest = $callNASA.collection.items.data
         $links = ($callNASA | select -ExpandProperty collection).links | select -Last 1
         $prompt = $links.prompt
         $rel = $links.rel
         $link = $links.href; Write-Host $link
-        $link1 = $link -replace ("https://images-api.nasa.gov/search","")
-        $link2 = $link1.Split('&')[0]
-        [int]$pageNumber = $link2.Substring($link2.Length - 1)
+        $linkHistory += "$link"
         $items += ($callNASA | select -ExpandProperty collection | select -expand items | select -expand links).href
-        $i++
     }
+    
 }
 
 Function ET-PhoneHome($ETphoneHome){
@@ -121,7 +115,7 @@ Function ET-PhoneHome($ETphoneHome){
                 $name = $name -replace ('\','_')
             }
             #>
-            $title1 = $name + ".jpg"
+            $title1 = $ID + ".jpg"        #############################  FIX THIS LATER (eg WATER caused name issues)
             $dc = $thisPic.DateCreated
             $dmi = $thisPic.Description_Minor
             $dma = $thisPic.DescriptionsMajor
