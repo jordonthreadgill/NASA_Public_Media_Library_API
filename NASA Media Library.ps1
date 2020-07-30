@@ -104,10 +104,20 @@ Function ET-PhoneHome($ETphoneHome){
             $location = "$searchPath\$title1"
         } else {
             $name = $thisPic.Title
-            $name = $name -replace (':',"-") # $name = $name -replace ('',"")
-            $name = $name -replace ('?',"_")
-            $name = $name -replace ('/',"_")
-            $name = $name -replace ('\',"_")
+            if ($name -like '*:*'){
+                $name = $name -replace (":",' -') 
+            }
+            if ($name -like '*?*'){ #Write-Host "yooooo"}
+                $name = $name -replace ('\?','')
+            }
+            <#
+            if ($name -like '*/*'){
+                $name = $name -replace ('/','_')
+            }
+            if ($name -like '*\*'){
+                $name = $name -replace ('\','_')
+            }
+            #>
             $title1 = $name + ".jpg"
             $dc = $thisPic.DateCreated
             $dmi = $thisPic.Description_Minor
