@@ -2,6 +2,7 @@
 # NASA Media API document:  https://images.nasa.gov/docs/images.nasa.gov_api_docs.pdf
 # 7/29/2020 - Jordon Threadgill
 
+$base = $env:USERPROFILE
 $date1 = Get-Date
 $date = $date1.ToString('MM-dd-yyyy')
 $desktop = "$base\Desktop"
@@ -132,5 +133,6 @@ Function ET-PhoneHome($ETphoneHome){
     }
     $legend | select NasaId, Title, Location, Description_Minor, DateCreated, Keywords, Description_Major, SecondaryCreator | Export-Csv -Path "$searchPath\$search4What Items Data Legend.csv" -NoTypeInformation
 }
+
 . ET-PhoneHome
 
