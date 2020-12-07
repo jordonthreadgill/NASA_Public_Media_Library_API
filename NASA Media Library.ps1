@@ -1,6 +1,6 @@
-﻿# NASA Media Library Image Download Script
+# NASA Media Library Image Download Script
 # NASA Media API document:  https://images.nasa.gov/docs/images.nasa.gov_api_docs.pdf
-# 7/29/2020 - Jordon Threadgill
+# 12/6/2020 - Jordon Threadgill - UPDATED to search more pages
 
 $base = $env:USERPROFILE
 $date1 = Get-Date
@@ -17,6 +17,9 @@ Function Page-Numbers($pageNumbers){
     $callNASA = irm -Uri $url -UseBasicParsing -Method get -ContentType "application/json"
     foreach ($thing in $callNASA.collection.items.data){
         $title = $thing.title
+        $album = $thing.album
+        $center = $thing.center
+        $location = $thing.location
         $dateCreated = $thing.date_created
         $descriptionMinor = $thing.description_508
         $descriptionMajor = $thing.description
@@ -28,18 +31,21 @@ Function Page-Numbers($pageNumbers){
         [string]$keywords = $keywords -replace “.$”
         $secondaryCreator = $thing.secondary_creator
 
-        $object1 = [pscustomobject]@{Title = $title; DateCreated = $dateCreated; Description_Minor = $descriptionMinor; NasaId = $nasaId; DescriptionsMajor = $descriptionMajor; Keywords = $keywords; SecondaryCreator = $secondaryCreator}
+        $object1 = [pscustomobject]@{Title = $title; DateCreated = $dateCreated; Center = $center; Location = $location; Album = $album;Description_Minor = $descriptionMinor; NasaId = $nasaId; DescriptionsMajor = $descriptionMajor; Keywords = $keywords; SecondaryCreator = $secondaryCreator}
         $rest.Add($object1)
     }
     [string]$keywords = $rest.keywords
     $links = ($callNASA | select -ExpandProperty collection).links
-    $prompt = $links.prompt
-    $rel = $links.rel
+    #$prompt = $links.prompt
+    #$rel = $links.rel
     $items += ($callNASA | select -ExpandProperty collection | select -expand items | select -expand links).href
-    $link = $links.href | select -last 1
-    $linkHistory += "$link"
-    
-    while((!($linkHistory | ? {$_ -notlike "*$link*"}))){
+    $linklast = $links.href | select -last 1
+    $linkfirst =  $links.href | select -First 1
+    $linkHistory += $url
+
+    $link = $linkfirst
+
+    while (($linkHistory | ? {$_ -eq $link}) -eq $null){
         $callNASA = irm -Uri $link -UseBasicParsing -Method get -ContentType "application/json" 
         foreach ($thing in $callNASA.collection.items.data){
             $title = $thing.title
@@ -53,14 +59,18 @@ Function Page-Numbers($pageNumbers){
             $object1 = [pscustomobject]@{Title = $title; DateCreated = $dateCreated; Description_Minor = $descriptionMinor; NasaId = $nasaId; DescriptionsMajor = $descriptionMajor; Keywords = $keywords; SecondaryCreator = $secondaryCreator}
             $rest += $object1
         }
-        $links = ($callNASA | select -ExpandProperty collection).links | select -Last 1
-        $prompt = $links.prompt
-        $rel = $links.rel
-        $link = $links.href; Write-Host $link
+        $links = ($callNASA | select -ExpandProperty collection).links | ? {$_.prompt -like "*next*"}
+        #$prompt = $links.prompt
+        #$rel = $links.rel
         $linkHistory += "$link"
+        $link = $links.href   # ; Write-Host $link
         $items += ($callNASA | select -ExpandProperty collection | select -expand items | select -expand links).href
+
+        if ($links -eq $null){
+            $link = $url
+        }
+        start-sleep -m 577
     }
-    
 }
 
 Function ET-PhoneHome($ETphoneHome){
@@ -135,4 +145,3 @@ Function ET-PhoneHome($ETphoneHome){
 }
 
 . ET-PhoneHome
-
