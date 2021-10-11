@@ -15,7 +15,7 @@ Function Search-NASA($searchNASA){
     $linkHistory = @()
     $next = $null
     $rest = New-Object -TypeName System.Collections.Generic.List[PSCustomObject]
-    $i = 1
+    $ii = 1
     $callNASA = irm -Uri $url -UseBasicParsing -Method get -ContentType "application/json"; start-sleep -m 555
     foreach ($thing in $callNASA.collection.items.data){
         $title = $thing.title
@@ -136,6 +136,7 @@ Function Search-NASA($searchNASA){
             $linkHistory += $link
         }
     }
+    $linkHistory.href | export-csv -notypeinformation -force -path "$searchpath\$search4what Links History.csv"
 }
 
 Function ET-PhoneHome($ETphoneHome){
@@ -213,7 +214,6 @@ Function ET-PhoneHome($ETphoneHome){
     #EXPORT ITEM INFORMATION LEGEND
     #EXPORT LINK HISTORY IN CASE ANY SEARCH PAGES NEED TO BE REQUERIED
     $legend | select NasaId, Title, Location, Description_Minor, DateCreated, Keywords, Description_Major, SecondaryCreator | Export-Csv -Path "$searchPath\$search4What Items Data Legend.csv" -NoTypeInformation
-    $linkhistory.href | export-csv -notypeinformation -force -path "$searchpath\$search4what Links History.csv"
 }
 
 #LETS GO!!!!
