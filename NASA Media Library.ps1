@@ -136,7 +136,7 @@ Function Search-NASA($searchNASA){
             $linkHistory += $link
         }
     }
-    $linkHistory.href | export-csv -notypeinformation -force -path "$searchpath\$search4what Links History.csv"
+    $linkHistory | export-csv -notypeinformation -force -path "$searchpath\$search4what Links History.csv"
 }
 
 Function ET-PhoneHome($ETphoneHome){
