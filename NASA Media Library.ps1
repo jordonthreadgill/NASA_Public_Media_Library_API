@@ -36,7 +36,6 @@ Function Search-NASA($searchNASA){
     [string]$keywords = $rest.keywords
 
     #QUERY ITEMS FROM PAGE 1
-    $ii = 0
     $items1 = $callNASA | select -ExpandProperty collection | select -expand items
     foreach ($it in $items1){
         $json = $it.href
