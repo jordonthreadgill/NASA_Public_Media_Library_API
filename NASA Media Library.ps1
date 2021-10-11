@@ -1,8 +1,8 @@
-# NASA Media Library Image Download Script
+# NASA Media Library API Images Download Script
 # NASA Media API document:  https://images.nasa.gov/docs/images.nasa.gov_api_docs.pdf
 # 10/10/2021 - Jordon Threadgill
 
-Function Page-Numbers($pageNumbers){
+Function Search-NASA($searchNASA){
     $base = $env:USERPROFILE
     $date1 = Get-Date
     $date = $date1.ToString('MM-dd-yyyy')
@@ -10,8 +10,10 @@ Function Page-Numbers($pageNumbers){
     $outpath = "$desktop\NASA Media Library $date"
     New-Item -Path $outpath -ItemType Directory -ErrorAction SilentlyContinue | out-null
 
+    #FIRST PAGE QUERY
     $items = @()
     $linkHistory = @()
+    $next = $null
     $rest = New-Object -TypeName System.Collections.Generic.List[PSCustomObject]
     $i = 0
     $callNASA = irm -Uri $url -UseBasicParsing -Method get -ContentType "application/json"; start-sleep -m 555
@@ -32,17 +34,20 @@ Function Page-Numbers($pageNumbers){
         $rest.Add($object1)
     }
     [string]$keywords = $rest.keywords
-    $links = ($callNASA | select -ExpandProperty collection).links | ? {$_.prompt -like "*next*"}
-    $prompt = $links.prompt
-    $rel = $links.rel
+
+    #QUERY ITEMS FROM PAGE 1
+    $ii = 0
     $items1 = $callNASA | select -ExpandProperty collection | select -expand items
     foreach ($it in $items1){
         $json = $it.href
         write-host -f cyan $json
         [string]$jsonLinks = iwr -uri $json | select -expand content; start-sleep -m 555
-        if ($error[0] -like "*403 ERROR*"){
+        if ($error[0] -like "*403*"){
             start-sleep -s 61
             [string]$jsonLinks = iwr -uri $json | select -expand content; start-sleep -m 555
+        }
+        if ($error[0] -like "*Maximum number of search results have been displayed*"){
+            $linkHistory += $url
         }
         $jsonLinks = $jsonLinks -replace ('\[',"")
         $jsonLinks = $jsonLinks -replace (']',"")
@@ -54,78 +59,113 @@ Function Page-Numbers($pageNumbers){
             }
         }
     }
+
+    #CHECK FOR NEXT PAGE
+    $links = ($callNASA | select -ExpandProperty collection).links | ? {$_.prompt -like "*next*"}
+    if ($links){
+        $next = $true
+    }
+    if (!($links)){
+        $next = $false
+    }
+    $prompt = $links.prompt
+    $rel = $links.rel
     $link = $links.href | select -last 1
-    $linklast = $links.href | select -last 1
-    $linkfirst =  $links.href | select -First 1
     $linkHistory += $url
     
-    while (($linkHistory | ? {$_ -eq $link}) -eq $null){
+    #IF NEXT PAGE FOUND, QUERY THE ITEMS
+    while ($next -eq $true){
+        $ii++; write-host -f green "Page: $ii - $link"
+        
+        #CALL NEXT PAGE OF ITEMS
         $callNASA = irm -Uri $link -UseBasicParsing -Method get -ContentType "application/json"; start-sleep -m 555
-        foreach ($thing in $callNASA.collection.items.data){
-            $title = $thing.title
-            $dateCreated = $thing.date_created
-            $descriptionMinor = $thing.description_508
-            $descriptionMajor = $thing.description
-            $nasaId = $thing.nasa_id
-            [string]$keywords = $thing.keywords
-            $secondaryCreator = $thing.secondary_creator
+        if ($callNasa){
+            foreach ($thing in $callNASA.collection.items.data){
+                $title = $thing.title
+                $dateCreated = $thing.date_created
+                $descriptionMinor = $thing.description_508
+                $descriptionMajor = $thing.description
+                $nasaId = $thing.nasa_id
+                [string]$keywords = $thing.keywords
+                $secondaryCreator = $thing.secondary_creator
 
-            $object1 = [pscustomobject]@{Title = $title; DateCreated = $dateCreated; Description_Minor = $descriptionMinor; NasaId = $nasaId; DescriptionsMajor = $descriptionMajor; Keywords = $keywords; SecondaryCreator = $secondaryCreator}
-            $rest += $object1
-        }
-        $links = ($callNASA | select -ExpandProperty collection).links | ? {$_.prompt -like "*next*"}
-        $prompt = $links.prompt
-        $rel = $links.rel
-        $link = $links.href | select -last 1
-        $linklast = $links.href | select -last 1
-        $linkfirst =  $links.href | select -First 1
-        $linkHistory += $url; write-host $link
-        $items1 = $callNASA | select -ExpandProperty collection | select -expand items
-        foreach ($it in $items1){
-            $json = $it.href
-            [string]$jsonLinks = iwr -uri $json -ErrorAction SilentlyContinue | select -expand content; start-sleep -m 555
-            if ($error[0] -like "*403 ERROR*"){
-                start-sleep -s 61
+                $object1 = [pscustomobject]@{Title = $title; DateCreated = $dateCreated; Description_Minor = $descriptionMinor; NasaId = $nasaId; DescriptionsMajor = $descriptionMajor; Keywords = $keywords; SecondaryCreator = $secondaryCreator}
+                $rest += $object1
+            }
+
+            #SORT THE ADDITIONAL ITEMS FOUND
+            $items1 = $callNASA | select -ExpandProperty collection | select -expand items
+            foreach ($it in $items1){
+                $json = $it.href
+                write-host -f cyan "Page: $ii - $json"
                 [string]$jsonLinks = iwr -uri $json -ErrorAction SilentlyContinue | select -expand content; start-sleep -m 555
-            }
-            $jsonLinks = $jsonLinks -replace ('\[',"")
-            $jsonLinks = $jsonLinks -replace (']',"")
-
-            foreach ($j in $jsonLinks.split(',')){
-                if ($j -like "*orig.jpg*"){
-                    $jj = ($j -replace ('"',"")).trim()
-                    $items += $jj
+                if ($error[0] -like "*403*"){
+                    start-sleep -s 61
+                    [string]$jsonLinks = iwr -uri $json -ErrorAction SilentlyContinue | select -expand content
                 }
+                if ($error[0] -like "*Maximum number of search results have been displayed*"){
+                    $linkHistory += $url
+                }
+                $jsonLinks = $jsonLinks -replace ('\[',"")
+                $jsonLinks = $jsonLinks -replace (']',"")
+
+                foreach ($j in $jsonLinks.split(',')){
+                    if ($j -like "*orig.jpg*"){
+                        $jj = ($j -replace ('"',"")).trim()
+                        $items += $jj
+                    }
+                }
+            }; write-host -f yellow "Items Found:" $items.count
+            $links = ($callNASA | select -ExpandProperty collection).links | ? {$_.prompt -like "*next*"}
+            if ($links){
+                $next = $true
+                $prompt = $links.prompt
+                $rel = $links.rel
+                $link = $links.href | select -last 1
             }
+            if (!($links)){
+                $next = $false
+            }
+            $linkHistory += $link
+        }
+        if ($error[0] -like "*403*"){
+            start-sleep -s 61
+            $callNASA = irm -Uri $link -UseBasicParsing -Method get -ContentType "application/json"
+        }
+        if ($error[0] -like "*Maximum number of search results have been displayed*"){
+            $linkHistory += $link
         }
     }
-    
 }
 
 Function ET-PhoneHome($ETphoneHome){
     cls
-    $mainUrl = "https://images-api.nasa.gov"
-
+    #SEARCH REFERENCES
     # /search
     # /asset/{nasa_id}
     # /metadata/{nasa_id}
     # /captions/{nasa_id}
     # /album/{album_name}
 
+    #SEARCH QUESTION ASK + SOME BASIC INFO
+    $mainUrl = "https://images-api.nasa.gov"
     $search4What = Read-Host "What are we searching for?" 
     [string]$string = $search4What -replace (" ",'%20') 
     [string]$q = '?q=' + $string
     [string]$img = '&media_type=image' 
     $url = $mainUrl + '/search' + $q + $img
     $searchPath = "$outpath\$search4What"
+    New-Item -Path $searchPath -ItemType Directory -ErrorAction silentlyContinue | out-null
 
-    New-Item -Path $searchPath -ItemType Directory -ErrorAction Continue
+    #SEND THE QUERY TO ANOTHER FUNCTION TO INDEX THE QUERY RESULTS
+    . Search-NASA
 
-    . Page-Numbers
-
+    #DOWNLOAD THE SEARCH RESULTS AS FILES
     $items = $items | sort -Unique
     $legend = New-Object -TypeName System.Collections.Generic.List[PSCustomObject]
+    $i = 0
     foreach ($item in $items){
+        $i++; write-host -f darkyellow "$i of" $items.count
         Write-Host $item
         $1 = $item -replace ("https://images-assets.nasa.gov/image/","")
         $1 = $item -replace ('http://images-assets.nasa.gov/image/',"")
@@ -161,16 +201,20 @@ Function ET-PhoneHome($ETphoneHome){
         }
 
         $web = iwr -Uri $item -OutFile $location -ErrorAction SilentlyContinue; start-sleep -m 555
-        if ($error[0] -like "*403 ERROR*"){
+        if ($error[0] -like "*403*"){
             start-sleep -s 61
-            $web = iwr -Uri $item -OutFile $location -ErrorAction SilentlyContinue; start-sleep -m 555
+            $web = iwr -Uri $item -OutFile $location -ErrorAction Continue
         }
             
         $object = [pscustomobject]@{Location = $location; Title = $name; DateCreated = $dc; Description_Minor = $dmi; NasaId = $naid; Description_Major = $dma; Keywords = $kw; SecondaryCreator = $sc}
         $legend.Add($object)
     }
+    
+    #EXPORT ITEM INFORMATION LEGEND
+    #EXPORT LINK HISTORY IN CASE ANY SEARCH PAGES NEED TO BE REQUERIED
     $legend | select NasaId, Title, Location, Description_Minor, DateCreated, Keywords, Description_Major, SecondaryCreator | Export-Csv -Path "$searchPath\$search4What Items Data Legend.csv" -NoTypeInformation
+    $linkhistory.href | export-csv -notypeinformation -force -path "$searchpath\$search4what Links History.csv"
 }
 
+#LETS GO!!!!
 . ET-PhoneHome
-
