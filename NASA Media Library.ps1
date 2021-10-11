@@ -15,7 +15,7 @@ Function Search-NASA($searchNASA){
     $linkHistory = @()
     $next = $null
     $rest = New-Object -TypeName System.Collections.Generic.List[PSCustomObject]
-    $i = 0
+    $i = 1
     $callNASA = irm -Uri $url -UseBasicParsing -Method get -ContentType "application/json"; start-sleep -m 555
     foreach ($thing in $callNASA.collection.items.data){
         $title = $thing.title
@@ -40,7 +40,7 @@ Function Search-NASA($searchNASA){
     $items1 = $callNASA | select -ExpandProperty collection | select -expand items
     foreach ($it in $items1){
         $json = $it.href
-        write-host -f cyan $json
+        write-host -f cyan "Page 1 - $json"
         [string]$jsonLinks = iwr -uri $json | select -expand content; start-sleep -m 555
         if ($error[0] -like "*403*"){
             start-sleep -s 61
