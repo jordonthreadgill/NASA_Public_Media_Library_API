@@ -3,13 +3,6 @@
 # 10/10/2021 - Jordon Threadgill
 
 Function Search-NASA($searchNASA){
-    $base = $env:USERPROFILE
-    $date1 = Get-Date
-    $date = $date1.ToString('MM-dd-yyyy')
-    $desktop = "$base\Desktop"
-    $outpath = "$desktop\NASA Media Library $date"
-    New-Item -Path $outpath -ItemType Directory -ErrorAction SilentlyContinue | out-null
-
     #FIRST PAGE QUERY
     $items = @()
     $linkHistory = @()
@@ -147,6 +140,13 @@ Function ET-PhoneHome($ETphoneHome){
     # /captions/{nasa_id}
     # /album/{album_name}
 
+    $base = $env:USERPROFILE
+    $date1 = Get-Date
+    $date = $date1.ToString('MM-dd-yyyy')
+    $desktop = "$base\Desktop"
+    $outpath = "$desktop\NASA Media Library $date"
+    New-Item -Path $outpath -ItemType Directory -ErrorAction SilentlyContinue | out-null
+
     #SEARCH QUESTION ASK + SOME BASIC INFO
     $mainUrl = "https://images-api.nasa.gov"
     $search4What = Read-Host "What are we searching for?" 
@@ -155,7 +155,7 @@ Function ET-PhoneHome($ETphoneHome){
     [string]$img = '&media_type=image' 
     $url = $mainUrl + '/search' + $q + $img
     $searchPath = "$outpath\$search4What"
-    New-Item -Path $searchPath -ItemType Directory -ErrorAction silentlyContinue | out-null
+    New-Item -Path $searchPath -ItemType Directory -ErrorAction continue | out-null
 
     #SEND THE QUERY TO ANOTHER FUNCTION TO INDEX THE QUERY RESULTS
     . Search-NASA
